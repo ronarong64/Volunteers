@@ -1,1 +1,149 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงทะเบียน อปพร.ตำบลเขาดิน</title>
+    <!-- นำเข้า Tailwind CSS สำหรับจัดตกแต่งหน้าจอ -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- นำเข้า LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col justify-center items-center p-4 font-sans">
 
+    <!-- การ์ดฟอร์มลงทะเบียน -->
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
+        
+        <!-- ส่วนหัว -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">ลงทะเบียนสมาชิก</h1>
+            <p class="text-sm text-slate-500 mt-1">ฌาปนกิจ อปพร. ตำบลเขาดิน</p>
+        </div>
+
+        <!-- ฟอร์มกรอกข้อมูล -->
+        <form id="regForm" class="space-y-4">
+            
+            <!-- LINE UID (แสดงแบบอ่านอย่างเดียว เพื่อให้ผู้ใช้มั่นใจว่าระบบเชื่อมต่อไลน์แล้ว) -->
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">LINE ID (ระบบดึงให้อัตโนมัติ)</label>
+                <input type="text" id="lineUid" readonly required
+                    class="w-full px-4 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-500 text-sm focus:outline-none" 
+                    placeholder="กำลังโหลดข้อมูลจาก LINE...">
+            </div>
+
+            <!-- ชื่อ - นามสกุล -->
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">ชื่อ - นามสกุล</label>
+                <input type="text" id="fullName" required
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 text-base focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                    placeholder="นายสมชาย ใจดี">
+            </div>
+
+            <!-- เบอร์โทรศัพท์ -->
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">เบอร์โทรศัพท์</label>
+                <input type="tel" id="phone" pattern="[0-9]{9,10}" required
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 text-base focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                    placeholder="0812345678">
+            </div>
+
+            <!-- ประเภทสมาชิก -->
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">ประเภทสมาชิก</label>
+                <select id="memberType" required
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 text-base bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="สมาชิกหลัก">สมาชิกหลัก (อปพร.)</option>
+                    <option value="เครือญาติ">เครือญาติ</option>
+                </select>
+            </div>
+
+            <!-- ปุ่มส่งข้อมูล -->
+            <button type="submit" id="submitBtn" disabled
+                class="w-full mt-2 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 disabled:bg-slate-300 disabled:cursor-not-allowed text-base shadow-md">
+                กำลังเตรียมระบบ...
+            </button>
+        </form>
+    </div>
+
+    <!-- ส่วนของสคริปต์ควบคุมการทำงาน -->
+    <script>
+        // 📌 ตั้งค่าคอนฟิก (แทนที่ด้วยข้อมูลของคุณ)
+        const LIFF_ID = "2010138238-lzPNdwTQ"; // ใส่ LIFF ID ที่ได้จาก LINE Developers
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxjBhPL0hGwtoaavGnSbmXw7Fmwzfg53CxUkjY4qntDmHn0wwVQ0F-rt3FG4hjtuyQP-g/exec"; // ใส่ Web App URL ที่ได้จาก Google Apps Script
+
+        // 1. เริ่มต้นการทำงานของ LINE LIFF
+        async function initLIFF() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (liff.isLoggedIn()) {
+                    getUserProfile();
+                } else {
+                    liff.login(); // ถ้ายังไม่ได้ล็อกอิน ให้เด้งหน้าล็อกอินของ LINE
+                }
+            } catch (error) {
+                console.error("LIFF Initialization failed", error);
+                alert("ไม่สามารถเชื่อมต่อกับ LINE ได้ กรุณาเปิดในแอปพลิเคชัน LINE");
+            }
+        }
+
+        // 2. ดึงข้อมูล Profile จาก LINE
+        async function getUserProfile() {
+            try {
+                const profile = await liff.getProfile();
+                document.getElementById("lineUid").value = profile.userId;
+                
+                // เมื่อโหลดข้อมูล LINE สำเร็จ จึงจะเปิดให้กดปุ่มลงทะเบียนได้
+                const submitBtn = document.getElementById("submitBtn");
+                submitBtn.disabled = false;
+                submitBtn.innerText = "ลงทะเบียนสมาชิกร่วมกลุ่ม";
+            } catch (error) {
+                console.error("Error getting profile", error);
+            }
+        }
+
+        // 3. จัดการเมื่อกดปุ่มส่งข้อมูล (Submit Form)
+        document.getElementById("regForm").addEventListener("submit", async function(e) {
+            e.preventDefault(); // ป้องกันหน้าเว็บรีเฟรชเอง
+            
+            const submitBtn = document.getElementById("submitBtn");
+            submitBtn.disabled = true;
+            submitBtn.innerText = "กำลังบันทึกข้อมูล...";
+
+            // รวบรวมข้อมูลจากฟอร์ม
+            const formData = {
+                lineUid: document.getElementById("lineUid").value,
+                fullName: document.getElementById("fullName").value,
+                phone: document.getElementById("phone").value,
+                memberType: document.getElementById("memberType").value
+            };
+
+            try {
+                // ยิง Request ไปที่ Google Apps Script API
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    alert(`ลงทะเบียนสำเร็จ!\nรหัสสมาชิกของคุณคือ: ${result.memberId}`);
+                    liff.closeWindow(); // ปิดหน้าต่างลงทะเบียนใน LINE ทันทีเมื่อเสร็จ
+                } else {
+                    alert("เกิดข้อผิดพลาด: " + result.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "ลงทะเบียนสมาชิกร่วมกลุ่ม";
+                }
+            } catch (error) {
+                console.error("Error sending data", error);
+                alert("ระบบขัดข้อง ไม่สามารถส่งข้อมูลไปยังฐานข้อมูลได้");
+                submitBtn.disabled = false;
+                submitBtn.innerText = "ลงทะเบียนสมาชิกร่วมกลุ่ม";
+            }
+        });
+
+        // เรียกใช้งานฟังก์ชันเริ่มระบบเมื่อหน้าเว็บโหลดเสร็จ
+        window.onload = initLIFF;
+    </script>
+</body>
+</html>
